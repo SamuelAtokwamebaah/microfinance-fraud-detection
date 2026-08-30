@@ -1,0 +1,9 @@
+# Normalise line endings so Windows and Linux checkouts agree, and so git stops
+# warning about LF becoming CRLF on every commit.
+* text=auto
+
+# GitHub's Linguist treats .sql as data and leaves it out of the language bar.
+# SQL is roughly a third of this repository by volume and carries the detection
+# logic, so it is counted here.
+*.sql linguist-detectable=true
+*.sql linguist-language=SQL
