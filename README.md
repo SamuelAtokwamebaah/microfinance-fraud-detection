@@ -18,8 +18,9 @@ at scale, and how much would we miss?
 
 | Phase | State |
 |---|---|
-| 1. Synthetic data generator | not started |
-| 2. Detection (SQL rules, then statistical) | not started |
+| 1. Synthetic data generator | **done** |
+| 2a. Detection, Tier 1 (SQL rules) | **done** — 4 rules, evaluated |
+| 2b. Detection, Tier 2 (statistical) | next |
 | 3. Evidence dashboard | not started |
 | 4. Repo polish | not started |
 
