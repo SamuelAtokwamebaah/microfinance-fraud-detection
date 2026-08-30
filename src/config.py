@@ -33,9 +33,16 @@ REPEAT_LOAN_PROB = 0.35
 
 # ---------------------------------------------------------------- honest behaviour
 # The noise floor. Detection has to beat THIS, not a clean ledger.
-P_ON_TIME = 0.86
-P_LATE = 0.11                        # paid, but after the due date
+P_ON_TIME = 0.81
+P_LATE = 0.11                        # paid in full, but after the due date
+P_PARTIAL = 0.05                     # paid SOMETHING, less than the installment
 P_MISSED = 0.03                      # genuinely not paid
+# Honest short payments matter more than they look. Without them, the only
+# under-recorded installments in the portfolio would be the fraudulent ones,
+# and any rule testing for short payment would score 100% by construction.
+# Real borrowers come up short; the detector has to survive that.
+PARTIAL_PAY_MIN = 0.40
+PARTIAL_PAY_MAX = 0.90
 LATE_DAYS_MAX = 21
 EARLY_PAYOFF_PROB = 0.06             # borrower clears the loan ahead of term
 DEFAULT_PROB = 0.05                  # borrower stops paying entirely

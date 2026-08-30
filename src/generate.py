@@ -238,11 +238,17 @@ def simulate_truth(loans, schedule, borrower_index):
             if due.month in C.LEAN_MONTHS:
                 p_late *= 1.4
             p_missed = C.P_MISSED
+            p_partial = C.P_PARTIAL * (C.TRADER_LATE_MULTIPLIER if is_trader else 1.0)
             r = RNG.random()
 
             if r < p_missed:
                 truth[schedule_id] = [0.0, None]
-            elif r < p_missed + p_late:
+            elif r < p_missed + p_partial:
+                # Came up short. Honest, common, and the reason a short-payment
+                # rule cannot simply flag every under-recorded installment.
+                part = round(amount * RNG.uniform(C.PARTIAL_PAY_MIN, C.PARTIAL_PAY_MAX), 2)
+                truth[schedule_id] = [part, iso(due + timedelta(days=RNG.randint(0, 5)))]
+            elif r < p_missed + p_partial + p_late:
                 delay = RNG.randint(1, C.LATE_DAYS_MAX)
                 truth[schedule_id] = [amount, iso(due + timedelta(days=delay))]
             else:
