@@ -410,6 +410,8 @@ def main():
     truth, loan_status = simulate_truth(loans, schedule, borrower_index)
     fraudulent, victims, skims = inject_fraud(loans, schedule, truth, borrowers, officers)
     recorded = build_recorded(schedule, truth, skims, loans)
+    loan_borrower_of = {row[0]: row[1] for row in schedule}
+    loan_borrower = {l[0]: l[1] for l in loans}
 
     con, path = write_db(branches, officers, borrowers, loans, schedule, recorded,
                          truth, skims, fraudulent, loan_status)
@@ -422,7 +424,12 @@ def main():
     print("scheduled payments  %6d" % len(schedule))
     print("recorded payments   %6d" % len(recorded))
     print("fraudulent officers %6s" % sorted(fraudulent))
-    print("victims             %6d borrowers" % len(victims))
+    skimmed_borrowers = len({loan_borrower[l]
+                             for sid, l in ((k, loan_borrower_of[k]) for k in skims)})
+    print("victims selected    %6d borrowers" % len(victims))
+    # Selected and skimmed are different counts: a selected borrower with no
+    # eligible payment during the ramp is never actually touched.
+    print("victims skimmed     %6d borrowers" % skimmed_borrowers)
     print("skimmed installments%6d" % len(skims))
     print("amount skimmed      GHS {:,.2f}".format(stolen))
     print("written to", path)

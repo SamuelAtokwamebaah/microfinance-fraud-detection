@@ -37,7 +37,7 @@ same shape, and then tries to find it — using only what an auditor would actua
 | **3,000** | borrowers, 20 credit officers, 5 branches |
 | **144,542** | scheduled installments over 24 months |
 | **2** | officers skimming, unknown to the detection code |
-| **164** | borrowers targeted, lightly, over 1,271 installments |
+| **126** | borrowers actually skimmed, lightly, over 1,271 installments |
 | **GHS 122,282** | taken |
 
 The fraud is calibrated to the real case: **many borrowers, skimmed lightly.** Each victim looks
@@ -59,13 +59,14 @@ The dashboard ranks officers by their mean position across three independent rul
 | Rank | Officer | Score | Signals |
 |---|---|---|---|
 | 1 | 11 | 98 | below peers · contradicts own history · short payments |
-| 2 | 9 | 90 | below peers · short payments |
-| 3 | 19 | 83 | below peers · contradicts own history |
+| 2 | 9 | 97 | below peers · contradicts own history · short payments |
+| 3 | 19 | 79 | below peers |
 | 4 | 14 | 74 | short payments |
 
-**Officers 11 and 9 are the two fraudsters.** Investigate the top two and you catch both, with
-no wasted effort: precision 100%, recall 100%. Investigate the top three and you also pull in
-officer 19, who has done nothing wrong.
+**Officers 11 and 9 are the two fraudsters, and they sit first and second.** Investigate the top
+two and you catch both with no wasted effort: precision 100%, recall 100%. Investigate the top
+three and you also pull in officer 19, who has done nothing wrong — the cost of one more step
+down the queue is one innocent colleague under suspicion.
 
 Ranking beat every individual rule, and beat thresholds. A cutoff tuned until it works is a
 cutoff fitted to labels you would not have in production; a rank needs no tuning.
@@ -75,24 +76,26 @@ cutoff fitted to labels you would not have in production; a rank needs no tuning
 | Rule | Precision | Recall | |
 |---|---|---|---|
 | Collection rate vs branch peers | 100% | 50% | catches the bold one, misses the careful one |
-| Borrowers contradicting own history | 100% | 50% | catches **the other one** |
-| Short payments vs branch peers | 67% | 100% | the single strongest rule |
+| Borrowers contradicting own history | 67% | 100% | compares each borrower to themselves, so a book full of market traders is not penalised |
+| Short payments vs branch peers | 67% | 100% | targets the mechanism rather than the symptom |
 | Benford first-digit test | 0% | 0% | **does not apply here — see below** |
 
-Rules 1 and 2 fail on different people. That is the argument for layering them, and it is the
-finding that makes the case queue work.
+Rule 1 alone misses the careful officer entirely. Requiring **two of the three rules to agree**
+flags exactly two officers, and both are guilty: precision 100%, recall 100%. That agreement,
+not any single rule, is what the case queue is built on.
 
 ### Catching the right money is much harder
 
 | | Precision | Recall |
 |---|---|---|
-| **Officer level** — did we name the right people? | 67–100% | 100% |
-| **Transaction level** — did we identify the right money? | 32% | 28% |
+| **Officer level** — did we name the right people? | 100% | 100% |
+| **Transaction level** — did we identify the right money? | 33% | 29% |
 
-We accused 1,124 installments; 357 had actually been skimmed. **We can name the culprit with
+We accused 1,121 installments; 370 had actually been skimmed. **We can name the culprit with
 confidence and still identify only a quarter of the theft**, because an honest short payment and
-a skimmed one look identical one row at a time. Roughly one installment in twenty in this
-portfolio is a legitimate shortfall.
+a skimmed one look identical one row at a time. Measured on this portfolio, **6.4% of recorded
+installments are honest shortfalls** — about one in sixteen — and the detector has to beat that
+noise floor, not a clean ledger.
 
 This is why the real case needed full documentary evidence before it could be escalated, and
 not just a suspicious collection rate. Any project reporting one blended accuracy figure is
@@ -107,7 +110,7 @@ formula repeated identically for 104 weeks, so the same leading digit recurs doz
 loan. The digit distribution describes the loan book, not the officer.
 
 **Isolation Forest lost to a z-score.** The simple combined z-score ranked both fraudsters first
-and second (67% precision, 100% recall). Isolation Forest ranked one of them *fourth* (33% / 50%).
+and second (67% precision at a top-three cut, 100% recall). Isolation Forest ranked one of them *fourth* (33% / 50%).
 Three reasons: only four features, where the method earns its keep in high dimensions; it scores
 each month independently, so it has no concept of persistence; and the ramp means early fraud
 months look normal and dilute the officer's average.

@@ -101,7 +101,7 @@ real ledger.
 | `schedule_id` | INTEGER | → `repayment_schedule.schedule_id` |
 | `officer_id` | INTEGER | The officer who recorded it |
 | `recorded_date` | TEXT | ISO date, may be after `due_date` for a late payment |
-| `amount_recorded_ghs` | REAL | May be **less** than `amount_due_ghs`: an honest short payment, or a partial skim. Roughly 1 installment in 20 is an honest shortfall |
+| `amount_recorded_ghs` | REAL | May be **less** than `amount_due_ghs`: an honest short payment, or a partial skim. Measured on the published seed, 6.4% of recorded installments are honest shortfalls |
 | `channel` | TEXT | `cash_to_officer` (78%), `branch_counter` (15%), `mobile_money` (7%) |
 
 ---

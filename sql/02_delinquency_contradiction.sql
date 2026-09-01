@@ -15,16 +15,18 @@ WITH paid AS (
 ),
 
 installments AS (
-    -- ROW_NUMBER numbers the installments inside each loan, oldest first, so
-    -- "early in the relationship" and "later" are well defined even though
-    -- loans start on different dates and run for different terms.
+    -- ROW_NUMBER numbers installments across the BORROWER's whole relationship,
+    -- oldest first. Partitioning by loan instead would restart the "early"
+    -- window on a repeat borrower's second loan, so installments falling late
+    -- in time -- including during a fraud -- would be scored as early history.
+    -- 29% of borrowers here take a second loan, so that is not a corner case.
     SELECT l.borrower_id,
            l.officer_id,
            s.loan_id,
            s.due_date,
            s.amount_due_ghs,
            COALESCE(p.recorded_ghs, 0)                AS recorded_ghs,
-           ROW_NUMBER() OVER (PARTITION BY s.loan_id
+           ROW_NUMBER() OVER (PARTITION BY l.borrower_id
                               ORDER BY s.due_date)    AS installment_seq
     FROM repayment_schedule s
     JOIN loans     l ON l.loan_id = s.loan_id

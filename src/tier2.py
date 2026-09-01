@@ -176,7 +176,7 @@ def transaction_level(con, flagged_officers):
     inst AS (
         SELECT s.schedule_id, l.officer_id, l.borrower_id,
                s.amount_due_ghs, COALESCE(p.recorded_ghs, 0) AS recorded_ghs,
-               ROW_NUMBER() OVER (PARTITION BY s.loan_id ORDER BY s.due_date) AS seq
+               ROW_NUMBER() OVER (PARTITION BY l.borrower_id ORDER BY s.due_date) AS seq
         FROM repayment_schedule s
         JOIN loans l ON l.loan_id = s.loan_id
         LEFT JOIN paid p ON p.schedule_id = s.schedule_id

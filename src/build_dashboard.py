@@ -174,7 +174,7 @@ inst AS (
     SELECT s.schedule_id, s.due_date, s.amount_due_ghs, s.installment_no,
            l.loan_id, l.borrower_id, l.officer_id,
            COALESCE(p.rec, 0) AS recorded_ghs, p.rec_date,
-           ROW_NUMBER() OVER (PARTITION BY s.loan_id ORDER BY s.due_date) AS seq
+           ROW_NUMBER() OVER (PARTITION BY l.borrower_id ORDER BY s.due_date) AS seq
     FROM repayment_schedule s
     JOIN loans l ON l.loan_id = s.loan_id
     LEFT JOIN paid p ON p.schedule_id = s.schedule_id
