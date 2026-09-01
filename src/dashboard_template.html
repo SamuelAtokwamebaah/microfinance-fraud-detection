@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escalation queue — microfinance fraud detection</title>
+<meta name="description" content="Evidence dashboard for a synthetic microfinance loan portfolio: officers ranked by suspicion, drill-down to the borrowers and installments behind each flag.">
+<style>
+  :root{
+    color-scheme: light;
+    --paper:#f6f7f9; --card:#ffffff; --ink:#0f1723; --ink-2:#41505f; --ink-3:#7b8794;
+    --line:#dfe4ea; --line-2:#eef1f5;
+    --accent:#1f4e88;
+    /* single-hue severity ramp, light -> dark */
+    --s1:#fde3dc; --s2:#f6b6a5; --s3:#e8836a; --s4:#c9503a; --s5:#8f2c1d;
+    --ok:#2f6f4f;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --paper:#0d131c; --card:#141c27; --ink:#e8edf3; --ink-2:#a8b6c4; --ink-3:#76838f;
+      --line:#26313f; --line-2:#1b232f; --accent:#6ea8e8;
+      --s1:#3a201a; --s2:#5e2f24; --s3:#8f4433; --s4:#c05c44; --s5:#e5806a;
+      --ok:#6cc294;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans);
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 20px 70px}
+  header{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:8px}
+  .eyebrow{font:600 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+  h1{font-size:24px;margin:8px 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--ink-2);max-width:70ch;margin:0}
+  .synth{margin-top:12px;display:inline-block;border:1px solid var(--line);border-left:3px solid var(--accent);
+         background:var(--card);padding:8px 12px;font-size:12.5px;color:var(--ink-2);border-radius:0 4px 4px 0}
+
+  .meta{display:flex;flex-wrap:wrap;gap:22px;margin:16px 0 26px;padding:12px 0;
+        border-bottom:1px solid var(--line)}
+  .meta div{font:12px var(--mono);color:var(--ink-3)}
+  .meta b{display:block;font:600 17px/1.2 var(--sans);color:var(--ink);font-variant-numeric:tabular-nums}
+
+  h2{font-size:15px;letter-spacing:.02em;margin:30px 0 4px}
+  .note{color:var(--ink-3);font-size:12.5px;margin:0 0 12px;max-width:78ch}
+
+  /* ---------- case queue ---------- */
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th{font:600 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+     text-align:left;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+  th.r,td.r{text-align:right}
+  td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--line-2)}
+  tbody tr[aria-selected="true"]{background:var(--line-2);box-shadow:inset 3px 0 0 var(--accent)}
+  .who{font-weight:600}
+  .whoid{font:11px var(--mono);color:var(--ink-3)}
+  .sev{display:inline-flex;align-items:center;gap:8px}
+  .chip{display:inline-block;min-width:44px;text-align:center;padding:3px 7px;border-radius:3px;
+        font:600 12px var(--mono);color:#fff}
+  .sigs{display:flex;flex-wrap:wrap;gap:5px}
+  .sig{font:11px var(--mono);border:1px solid var(--line);border-radius:3px;padding:2px 6px;color:var(--ink-2)}
+  .none{color:var(--ink-3);font-style:italic}
+
+  /* ---------- detail ---------- */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px;margin-top:14px}
+  .ptitle{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;
+          border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
+  .ptitle h3{margin:0;font-size:17px}
+  .ptitle .sc{font:600 13px var(--mono);color:var(--ink-2)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin-bottom:6px}
+  .stat{border-left:2px solid var(--line);padding-left:11px}
+  .stat span{display:block;font:11px var(--mono);color:var(--ink-3);letter-spacing:.05em}
+  .stat b{font:600 18px/1.3 var(--sans);font-variant-numeric:tabular-nums}
+  .stat i{font-style:normal;font-size:12px;color:var(--ink-3)}
+  figure{margin:18px 0 6px}
+  figcaption{font-size:12.5px;color:var(--ink-2);margin-bottom:8px}
+  .legend{display:flex;gap:16px;font:11px var(--mono);color:var(--ink-3);margin-bottom:6px}
+  .legend i{display:inline-block;width:16px;height:2px;vertical-align:middle;margin-right:5px}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .scroll{overflow-x:auto}
+  details{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+  summary{cursor:pointer;font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+  details[open] summary{margin-bottom:10px}
+
+  /* ---------- evaluation ---------- */
+  .eval{margin-top:34px;border:1px dashed var(--line);border-radius:6px;padding:18px;background:var(--card)}
+  .eval h2{margin-top:0}
+  .warn{font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--s4)}
+  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);
+         font-size:12.5px;color:var(--ink-3)}
+  a{color:var(--accent)}
+  @media (max-width:640px){ .hide-s{display:none} h1{font-size:20px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Escalation queue</div>
+  <h1>Which credit officer should be investigated first?</h1>
+  <p class="sub">Twenty officers across five branches, ranked by three independent detection rules
+  run over a 24-month loan book. Select a case to see why it was flagged, then the specific
+  borrowers and installments behind the flag.</p>
+  <div class="synth"><b>Synthetic data.</b> No real borrower, credit officer, branch or institution
+  appears here. The portfolio is generated from a fixed seed and is reproducible in full.</div>
+</header>
+
+<div class="meta" id="meta"></div>
+
+<h2>Case queue</h2>
+<p class="note">Ranked by mean position across all three rules, so agreement between independent
+signals outweighs one extreme reading. The ranking uses only the repayment schedule and the recorded
+book &mdash; the same two things an auditor would have.</p>
+<div class="scroll">
+  <table id="queue">
+    <thead><tr>
+      <th>Officer</th><th class="hide-s">Branch</th><th class="r">Suspicion</th>
+      <th class="r hide-s">Book</th><th>Signals fired</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="detail"></div>
+
+<section class="eval" id="eval"></section>
+
+<footer>
+  Built from <code>src/build_dashboard.py</code>. Every figure regenerates from the seed with
+  <code>python src/generate.py &amp;&amp; python src/build_dashboard.py</code>.
+</footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/;
+
+const fmt  = n => n === null || n === undefined ? "—" : Number(n).toLocaleString();
+const gh   = n => n === null || n === undefined ? "—" : "GHS " + Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+const pp   = n => n === null || n === undefined ? "—" : (n > 0 ? "+" : "") + Number(n).toFixed(2) + " pp";
+const esc  = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* Severity uses one hue, light to dark. Rank is also printed as a number, so the
+   ordering never depends on telling two shades apart. */
+function sevColor(score){
+  const steps = ["--s1","--s2","--s3","--s4","--s5"];
+  const i = Math.min(4, Math.floor(score / 20));
+  return getComputedStyle(document.documentElement).getPropertyValue(steps[i]).trim();
+}
+/* Text colour is derived from the swatch's own luminance rather than from the
+   score, because the severity ramp inverts between light and dark themes: the
+   lightest step in one is the darkest in the other. */
+function onColor(hex){
+  const h = hex.replace("#","");
+  const v = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
+  const [r,g,b] = [0,2,4].map(i => parseInt(v.substr(i,2),16) / 255)
+    .map(c => c <= 0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4));
+  return (0.2126*r + 0.7152*g + 0.0722*b) > 0.42 ? "#10171f" : "#ffffff";
+}
+
+/* ---------------- header figures ---------------- */
+(function(){
+  const p = DATA.portfolio;
+  document.getElementById("meta").innerHTML = [
+    ["Branches", p.branches], ["Credit officers", p.officers], ["Borrowers", fmt(p.borrowers)],
+    ["Loans", fmt(p.loans)], ["Scheduled payments", fmt(p.scheduled)], ["Recorded payments", fmt(p.recorded)]
+  ].map(([k,v]) => `<div><b>${v}</b>${k}</div>`).join("");
+})();
+
+/* ---------------- case queue ---------------- */
+const tbody = document.querySelector("#queue tbody");
+tbody.innerHTML = DATA.cases.map(c => `
+  <tr data-id="${c.officer_id}" tabindex="0" role="button" aria-selected="false">
+    <td><span class="who">${esc(c.name)}</span><br><span class="whoid">officer ${c.officer_id}</span></td>
+    <td class="hide-s">${esc(c.branch)}</td>
+    <td class="r"><span class="sev"><span class="chip" style="background:${sevColor(c.score)};
+        color:${onColor(sevColor(c.score))}">${c.score.toFixed(0)}</span></span></td>
+    <td class="r hide-s">${c.book_size}</td>
+    <td>${c.signals.length
+        ? `<div class="sigs">${c.signals.map(s => `<span class="sig">${esc(s)}</span>`).join("")}</div>`
+        : `<span class="none">none in the top three</span>`}</td>
+  </tr>`).join("");
+
+function select(id, scroll){
+  [...tbody.rows].forEach(r => r.setAttribute("aria-selected", r.dataset.id === String(id)));
+  renderDetail(DATA.cases.find(c => c.officer_id === Number(id)), scroll);
+}
+tbody.addEventListener("click", e => { const r = e.target.closest("tr"); if (r) select(r.dataset.id, true); });
+tbody.addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === " ") { const r = e.target.closest("tr"); if (r) { e.preventDefault(); select(r.dataset.id, true); } }
+});
+
+/* ---------------- trend chart ---------------- */
+function trendChart(series){
+  const W = 900, H = 210, L = 44, R = 12, T = 10, B = 26;
+  const vals = series.flatMap(d => [d.officer, d.peer]).filter(v => v != null);
+  const lo = Math.floor(Math.min(...vals) / 5) * 5, hi = Math.ceil(Math.max(...vals) / 5) * 5;
+  const x = i => L + i * (W - L - R) / Math.max(1, series.length - 1);
+  const y = v => T + (hi - v) * (H - T - B) / (hi - lo || 1);
+  const path = key => series.map((d, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(d[key]).toFixed(1)).join(" ");
+  const ticks = [];
+  for (let v = lo; v <= hi; v += Math.max(5, Math.round((hi - lo) / 4 / 5) * 5)) ticks.push(v);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Monthly collection rate, officer against branch peers">
+    ${ticks.map(v => `<g><line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>
+       <text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--ink-3)" font-family="var(--mono)">${v}%</text></g>`).join("")}
+    <path d="${path("peer")}" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-dasharray="4 3"/>
+    <path d="${path("officer")}" fill="none" stroke="var(--s4)" stroke-width="2"/>
+    ${series.map((d, i) => i % 3 === 0
+      ? `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--ink-3)" font-family="var(--mono)">${d.period.slice(2)}</text>` : "").join("")}
+  </svg>`;
+}
+
+/* ---------------- detail + evidence ---------------- */
+function renderDetail(c, scroll){
+  const m = c.metrics, ev = DATA.evidence[String(c.officer_id)], tr = DATA.trends[String(c.officer_id)] || [];
+  const rows = ev ? ev.rows : [];
+  const host = document.getElementById("detail");
+
+  host.innerHTML = `
+  <div class="panel">
+    <div class="ptitle">
+      <h3>${esc(c.name)} &middot; officer ${c.officer_id} &middot; ${esc(c.branch)}</h3>
+      <span class="sc">suspicion ${c.score.toFixed(0)} / 100 &middot; rule ranks:
+        peer gap #${c.ranks.peer_gap} &middot; contradiction #${c.ranks.contradiction} &middot; short pay #${c.ranks.short_pay}</span>
+    </div>
+
+    <div class="grid">
+      <div class="stat"><span>MEAN GAP vs PEERS</span><b>${pp(m.mean_gap_pp)}</b>
+        <i>${m.months_below_peers ?? "—"} of ${m.months_observed ?? "—"} months below</i></div>
+      <div class="stat"><span>SHORT PAYMENTS</span><b>${m.pct_short ?? "—"}%</b>
+        <i>peers ${m.peer_pct_short ?? "—"}%, excess ${pp(m.excess_pp)}</i></div>
+      <div class="stat"><span>BORROWERS CONTRADICTING</span><b>${m.contradicting_borrowers ?? "—"}</b>
+        <i>${m.pct_of_book ?? "—"}% of a ${c.book_size}-borrower book</i></div>
+      <div class="stat"><span>UNRECORDED, EVIDENCED</span><b>${ev ? gh(ev.total_shortfall_ghs) : "—"}</b>
+        <i>${ev ? ev.installments + " installments, " + ev.borrowers + " borrowers" : "pack not built"}</i></div>
+    </div>
+
+    ${c.owns_followup ? `<p class="note"><b>Control note.</b> This officer owns delinquency follow-up on his
+      own book, so no independent party ever contacts a borrower he has marked delinquent.</p>` : ""}
+
+    <figure>
+      <figcaption>Monthly collection rate against branch peers. Peers exclude this officer, so he cannot
+      sit inside a benchmark he dominates.</figcaption>
+      <div class="legend"><span><i style="background:var(--s4)"></i>${esc(c.name)}</span>
+        <span><i style="background:var(--ink-3);height:0;border-top:2px dashed var(--ink-3)"></i>branch peers</span></div>
+      ${tr.length ? trendChart(tr) : "<p class='none'>no trend data</p>"}
+    </figure>
+
+    ${ev ? `
+    <details open>
+      <summary>Evidence pack &mdash; borrowers</summary>
+      <p class="note">Restricted to borrowers whose first eight installments were clean and who then
+      went short. That profile is what separates an evidence pack from a list of every late payer.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>Borrower</th><th class="r">Installments short</th><th class="r">Unrecorded</th>
+          <th class="hide-s">First</th><th class="hide-s">Last</th></tr></thead>
+        <tbody>${ev.borrower_rows.map(b => `<tr style="cursor:default">
+          <td>${esc(b.name)} <span class="whoid">#${b.borrower_id}</span></td>
+          <td class="r">${b.installments}</td><td class="r">${gh(b.shortfall_ghs)}</td>
+          <td class="hide-s">${b.first}</td><td class="hide-s">${b.last}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </details>
+
+    <details>
+      <summary>Evidence pack &mdash; individual installments (${rows.length}${ev.truncated ? " of " + (rows.length + ev.truncated) : ""})</summary>
+      <div class="scroll"><table>
+        <thead><tr><th>Due</th><th>Borrower</th><th class="r">Due</th><th class="r">Recorded</th>
+          <th class="r">Unrecorded</th><th class="hide-s">Loan</th></tr></thead>
+        <tbody>${rows.map(r => `<tr style="cursor:default">
+          <td>${r.due_date}</td><td>${esc(r.borrower)} <span class="whoid">#${r.borrower_id}</span></td>
+          <td class="r">${r.due_ghs.toFixed(2)}</td><td class="r">${r.recorded_ghs.toFixed(2)}</td>
+          <td class="r"><b>${r.shortfall_ghs.toFixed(2)}</b></td>
+          <td class="hide-s whoid">${r.loan_id}/${r.installment_no}</td></tr>`).join("")}</tbody>
+      </table></div>
+      ${ev.truncated ? `<p class="note">${ev.truncated} further installments omitted for length; the full set is in the database.</p>` : ""}
+    </details>` : ""}
+  </div>`;
+  if (scroll) host.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+/* ---------------- evaluation, quarantined ---------------- */
+(function(){
+  const e = DATA.evaluation;
+  document.getElementById("eval").innerHTML = `
+    <div class="warn">Evaluation only &mdash; not available to the tool above</div>
+    <h2>How did the ranking do?</h2>
+    <p class="note">The fraud in this portfolio was injected, so the answer is known. Nothing below
+    feeds the ranking: it is scored after the fact, which is the only way the figures mean anything.
+    A real investigator has the queue above and no labels at all.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>If you investigate the top</th><th class="r">Caught</th>
+        <th class="r">Precision</th><th class="r">Recall</th></tr></thead>
+      <tbody>${e.at_k.map(r => `<tr style="cursor:default">
+        <td>${r.k} officer${r.k > 1 ? "s" : ""}</td>
+        <td class="r">${r.caught} of ${r.of}</td>
+        <td class="r">${r.precision}%</td><td class="r">${r.recall}%</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="note" style="margin-top:12px">Ground truth: officers ${e.fraud_officers.join(" and ")} were
+    skimming, across ${fmt(e.skimmed_installments)} installments totalling ${gh(e.total_taken_ghs)}.
+    Catching the right people is markedly easier than identifying the right money &mdash; the evidence
+    packs above name more installments than were actually skimmed, because honest short payments look
+    identical one row at a time.</p>`;
+})();
+
+select(DATA.cases[0].officer_id, false);
+</script>
+</body>
+</html>
