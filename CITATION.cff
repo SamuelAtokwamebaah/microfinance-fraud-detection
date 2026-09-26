@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "microfinance-fraud-detection: catching a loan-repayment skimming scheme in a synthetic portfolio"
+message: "If you use this code or method, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Baah
+    given-names: Samuel Ato Kwame
+    affiliation: "Independent researcher, Accra, Ghana"
+    email: samatohobbs@gmail.com
+    orcid: "https://orcid.org/0009-0002-8773-7525"
+abstract: >-
+  SQL rules and Python anomaly detection applied to a synthetic 24-month microfinance loan book of
+  3,000 borrowers, into which a loan-repayment skimming scheme is injected. The project reports
+  what the detection misses as carefully as what it catches: the guilty officers are ranked first
+  and second, while only a minority of the skimmed installments are identified, because an honest
+  short payment and a skimmed one look identical one row at a time. Every record is synthetic and
+  generated from a fixed seed.
+keywords:
+  - fraud detection
+  - anomaly detection
+  - forensic accounting
+  - audit analytics
+  - microfinance
+  - synthetic data
+  - reproducible research
+license: MIT
