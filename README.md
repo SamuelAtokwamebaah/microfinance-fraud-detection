@@ -234,6 +234,23 @@ shortfall. In the real case that was the beginning of an investigation, not the 
 
 ---
 
+## Related work
+
+This is the second of four repositories, each asking a different question about the same
+subject: what failed in Ghana's deposit-taking sector, and what would have caught it.
+
+| | repository | question |
+|---|---|---|
+| 1 | [`ghana-banking-collapse`](https://github.com/SamuelAtokwamebaah/ghana-banking-collapse) | *which* institutions failed, and why |
+| 2 | **`microfinance-fraud-detection`** | how much of a repayment-skimming scheme detection would catch |
+| 3 | [`related-party-lending-network`](https://github.com/SamuelAtokwamebaah/related-party-lending-network) | how insiders were structurally connected |
+| 4 | [`act-930-resolution-timelines`](https://github.com/SamuelAtokwamebaah/act-930-resolution-timelines) | how long the regulator left insolvent institutions licensed |
+
+This one is the only project in the set built on synthetic data, because it is the only one
+asking what a detection method would catch rather than what a published record shows.
+
+---
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
