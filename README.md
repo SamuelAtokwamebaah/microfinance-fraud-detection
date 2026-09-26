@@ -244,7 +244,7 @@ subject: what failed in Ghana's deposit-taking sector, and what would have caugh
 | 1 | [`ghana-banking-collapse`](https://github.com/SamuelAtokwamebaah/ghana-banking-collapse) | *which* institutions failed, and why |
 | 2 | **`microfinance-fraud-detection`** | how much of a repayment-skimming scheme detection would catch |
 | 3 | [`related-party-lending-network`](https://github.com/SamuelAtokwamebaah/related-party-lending-network) | how insiders were structurally connected |
-| 4 | [`act-930-resolution-timelines`](https://github.com/SamuelAtokwamebaah/act-930-resolution-timelines) | how long the regulator left insolvent institutions licensed |
+| 4 | `act-930-resolution-timelines` (published with the article) | how long the regulator left insolvent institutions licensed |
 
 This one is the only project in the set built on synthetic data, because it is the only one
 asking what a detection method would catch rather than what a published record shows.
