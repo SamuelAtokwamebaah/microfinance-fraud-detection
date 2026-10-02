@@ -3,6 +3,9 @@
 Catching a loan-repayment skimming scheme in a synthetic microfinance portfolio, with SQL
 rules and Python anomaly detection — and measuring honestly how much it misses.
 
+**[Open the case dashboard](https://samuelatokwamebaah.github.io/microfinance-fraud-detection/)**,
+the evidence laid out the way an investigator would work it, with nothing to install.
+
 > **Every record in this repository is synthetic.** No real borrower, credit officer, branch
 > or institution appears here, and no data from any real engagement has been used. The
 > portfolio is generated from a fixed random seed, so anyone can reproduce it exactly.
@@ -146,7 +149,8 @@ z-score and by Isolation Forest, reported at both officer and transaction level.
 
 ### The dashboard
 
-`docs/index.html` — static, dependency-free, mirroring a real escalation:
+[**Live at samuelatokwamebaah.github.io/microfinance-fraud-detection**](https://samuelatokwamebaah.github.io/microfinance-fraud-detection/),
+built from `docs/index.html`. Static, dependency-free, mirroring a real escalation:
 
 1. **Case queue** — who to look at first, and which rules fired
 2. **Officer detail** — rule scores and a collection trend against branch peers
