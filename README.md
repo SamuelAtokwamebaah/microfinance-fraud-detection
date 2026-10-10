@@ -12,6 +12,27 @@ the evidence laid out the way an investigator would work it, with nothing to ins
 
 ---
 
+## In short
+
+- Rebuilds a **real GHS 58,600 skimming case** I found by hand in a Ghanaian microfinance
+  receivership, as a detection problem on a 3,000-borrower synthetic portfolio.
+- Three SQL rules, ranked rather than thresholded, put **both fraudulent officers first and
+  second** out of 20.
+- Across **20 independently generated portfolios** the top of the queue is a fraudster every
+  time, and both fraudsters are in the top three every time. In the top *two*, 18 times out of 20.
+- Naming the culprit is easy; naming the money is not. On the published portfolio, officer level
+  runs at 100% precision against **33% at transaction level**, because an honest short payment
+  and a skimmed one look identical one row at a time.
+- Two tools that should have worked did not, and both are reported rather than dropped: the
+  **Benford first-digit test scores zero**, and **Isolation Forest loses to a plain z-score**.
+- The method has a structural blind spot it cannot fix: two officers skimming in the same branch
+  **conceal each other**, because each sits in the benchmark the other is judged against.
+
+Full method and measured accuracy below. For one officer explained in plain English, see
+**[docs/CASE_MEMO.md](docs/CASE_MEMO.md)**.
+
+---
+
 ## The case this rebuilds
 
 In a Ghanaian microfinance receivership I found **GHS 58,600** that a credit officer had taken
@@ -71,11 +92,6 @@ two and you catch both with no wasted effort: precision 100%, recall 100%. Inves
 three and you also pull in officer 19, who has done nothing wrong. The cost of one more step
 down the queue is one innocent colleague under suspicion.
 
-Ranking beat every individual rule, and beat thresholds. A cutoff tuned until it works is a
-cutoff fitted to labels you would not have in production; a rank needs no tuning.
-
-### Walking down the queue, and how far down you have to go
-
 | Investigate the top | Precision | Recall | |
 |---|---|---|---|
 | 1 | 100% | 50% | one fraudster named, one still working |
@@ -83,53 +99,12 @@ cutoff fitted to labels you would not have in production; a rank needs no tuning
 | 3 | 67% | 100% | one innocent colleague pulled in |
 | 5 | 40% | 100% | three innocent colleagues pulled in |
 
-The useful figure here is **precision at the top of the queue, not at the bottom.** An
-investigator with time for one officer loses nothing by starting at the top; an investigator
-who works five deep spends 60% of the effort on innocent staff.
+The figure that matters is **precision at the top of the queue, not at the bottom.** An
+investigator with time for one officer loses nothing by starting at the top; one who works five
+deep spends 60% of the effort on innocent staff.
 
-### Which rule put each officer there
-
-The score is the mean of three ranks, so the interesting question is not the
-score but which test drove it. Rank 1 is the most suspicious of the 20 officers
-on that test.
-
-| Rank | Officer | Collection vs peers | Own-history contradiction | Short payments | Dominant signal |
-|---|---|---|---|---|---|
-| 1 | 11 | 2nd | **1st** | **1st** | short payments and contradiction |
-| 2 | 9 | **1st** | 2nd | 2nd | collection rate |
-| 3 | 19 | 3rd | 5th | 7th | collection rate only |
-| 4 | 14 | 11th | 4th | 3rd | short payments only |
-| 5 | 5 | 9th | 7th | 5th | none, mid-table throughout |
-
-**The two guilty officers are the only two that any test ranks in its top two.**
-Everyone below them is carried by a single signal:
-
-- **Officer 19** is third almost entirely on collection rate. On short payments
-  he is at 6.5% against peers at 6.32%, which is no difference at all.
-- **Officer 14** collects **better** than his peers, by 0.65 points, and was
-  below them in only 1 month of 24. He appears because his short-payment rate is
-  1 point above his branch, which a book full of market traders will produce.
-- **Officer 5** fires no signal at all. He is fifth because he is mildly
-  mid-table on everything, which is what fifth place looks like when 18 of 20
-  officers are honest.
-
-### The two fraudsters hide inside each other
-
-Officers 11 and 9 are both in the Ho branch, and the peer benchmark removes only
-the officer being scored, not the other one. So each fraudster's skimming is
-sitting in the benchmark the other is judged against.
-
-| Officer 11's short-payment rate against | Benchmark | He is |
-|---|---|---|
-| the branch, as the rule computes it | 8.44% | 1.59x his peers |
-| the branch excluding officer 9 | 6.51% | **2.07x his peers** |
-
-**Peer-relative detection understates collusion, and understates coincidence
-too.** It does not need two officers to be working together, only to be in the
-same branch at the same time. The more of a branch that is skimming, the more
-normal skimming looks there, and a whole branch doing it would read as clean.
-That is a structural limit of the method rather than a tuning problem, and it is
-the main reason the rules are a queue for human review and not a verdict.
+Ranking beat every individual rule, and beat thresholds. A cutoff tuned until it works is a
+cutoff fitted to labels you would not have in production; a rank needs no tuning.
 
 ### Does it survive a different portfolio?
 
@@ -163,6 +138,24 @@ and in the other two one of them slipped to third. So the honest version of the 
 
 That is a weaker claim than the single-seed numbers support, and it is the one the evidence
 actually carries.
+
+### The two fraudsters hide inside each other
+
+Officers 11 and 9 are both in the Ho branch, and the peer benchmark removes only
+the officer being scored, not the other one. So each fraudster's skimming is
+sitting in the benchmark the other is judged against.
+
+| Officer 11's short-payment rate against | Benchmark | He is |
+|---|---|---|
+| the branch, as the rule computes it | 8.44% | 1.59x his peers |
+| the branch excluding officer 9 | 6.51% | **2.07x his peers** |
+
+**Peer-relative detection understates collusion, and understates coincidence
+too.** It does not need two officers to be working together, only to be in the
+same branch at the same time. The more of a branch that is skimming, the more
+normal skimming looks there, and a whole branch doing it would read as clean.
+That is a structural limit of the method rather than a tuning problem, and it is
+the main reason the rules are a queue for human review and not a verdict.
 
 ### What each rule found on its own
 
@@ -267,59 +260,29 @@ and using only figures from the run, is in
 ## Reproducing it
 
 ```bash
-python run_all.py
+python run_all.py                  # portfolio, both tiers, dashboard. About 30 seconds
+python tests/run_tests.py          # four tests, no framework needed
+python analysis/sensitivity.py     # the 20-seed sweep. About 3 minutes
 ```
 
-That regenerates the portfolio, scores both detection tiers and rebuilds the dashboard. About
-30 seconds.
+Generation, the SQL tier, the dashboard and the tests need **only the Python standard library**.
+The statistical tier needs pandas, numpy and scikit-learn (`pip install -r requirements.txt`);
+without them `run_all.py` skips that step and completes the rest.
 
-Generation, the SQL tier and the dashboard need **only the Python standard library**. The
-statistical tier needs pandas, numpy and scikit-learn; without them `run_all.py` skips that step
-and completes the rest.
-
-```bash
-pip install -r requirements.txt    # optional, for the statistical tier
-```
-
-To run a single rule against the database yourself:
+To run a single rule against the database yourself, or to generate a different portfolio without
+editing any file:
 
 ```bash
 sqlite3 data/generated/portfolio.db < sql/03_short_payment_concentration.sql
-```
-
-Change `SEED` in `src/config.py` and you get a different portfolio with different fraud in
-different officers. The published seed is fixed so that every number in this README is checkable.
-For a one-off run without editing the file:
-
-```bash
 MFD_SEED=12345 MFD_DB_PATH=data/generated/scratch.db python src/generate.py
 ```
 
-### Tests
+The published seed is fixed, so every number in this README is checkable.
 
-```bash
-python tests/run_tests.py          # all three
-python tests/run_tests.py --fast   # skip the ones that rebuild portfolios
-```
-
-No test framework, and nothing to install, for the same reason the SQL tier needs only the
-standard library.
-
-| test | what it would catch |
-|---|---|
-| `test_layer_separation.py` | detection code reading the ground-truth tables, which would make every precision figure circular while breaking nothing |
-| `test_edge_cases.py` | the SQL mishandling an empty peer group, a month with nothing due, or an installment with no repayment row |
-| `test_reproducibility.py` | an unseeded call to `random` creeping into the generator, which would make the README's numbers drift silently |
-
-### Sensitivity
-
-```bash
-python analysis/sensitivity.py              # 20 seeds, about 3 minutes
-python analysis/sensitivity.py --seeds 5    # quicker
-```
-
-Rebuilds the portfolio from scratch under each seed and scores the same published ranking. The
-seed list is fixed and published, so the sweep is as reproducible as the single run it tests.
+The tests exist for failures that would not announce themselves: detection code reading the
+ground-truth tables, which would make every precision figure circular while breaking nothing;
+the SQL mishandling an empty peer group; an unseeded call to `random` making these numbers drift;
+and the observation window in `sql/` falling out of step with `config.py`.
 
 ---
 
@@ -327,7 +290,6 @@ seed list is fixed and published, so the sweep is as reproducible as the single 
 
 ```
 run_all.py                 rebuild everything, one command
-requirements.txt           pinned versions for the statistical tier
 src/
   config.py                every parameter of the simulation, in one file
   schema.sql               eight tables, with the three-layer separation
@@ -335,19 +297,13 @@ src/
   evaluate_tier1.py        scores the SQL rules against ground truth
   tier2.py                 z-score and Isolation Forest, both levels
   build_dashboard.py       assembles docs/index.html
-  dashboard_template.html
 sql/
   01_officer_peer_gap.sql             collection rate vs branch peers
   02_delinquency_contradiction.sql    borrowers contradicting their own history
   03_short_payment_concentration.sql  short payments vs branch peers
   04_benford_first_digit.sql          Benford test, and why it fails here
-tests/
-  run_tests.py             all three, one command, no framework
-  test_layer_separation.py detection is blind to ground truth, checked by parsing the source
-  test_edge_cases.py       the SQL against an empty peer group and a zero-due month
-  test_reproducibility.py  same seed reproduces, different seed differs
-analysis/
-  sensitivity.py           the same ranking across 20 generated portfolios
+tests/                     four tests, run_tests.py runs them all
+analysis/sensitivity.py    the same ranking across 20 generated portfolios
 docs/
   index.html               the evidence dashboard
   CASE_MEMO.md             the top-ranked officer explained in plain English
@@ -358,60 +314,44 @@ docs/
 
 ## Scope and limits
 
-**What this method catches.** Repayment skimming by a credit officer: money
-collected from the borrower and not entered, or entered short. It catches it at
-officer level, from aggregate patterns, without needing to know which
-installments were taken.
+**What it catches.** Repayment skimming by a credit officer: money collected from the borrower
+and not entered, or entered short. It catches it at officer level, from aggregate patterns,
+without needing to know which installments were taken.
 
-**What it misses, by design.** Each of these would need a different rule, and
-none of them would show up in the three used here.
+**What it misses, by design.** Each of these would need a different rule, and none would show up
+in the three used here.
 
 | Scheme | Why these rules cannot see it |
 |---|---|
 | Ghost loans | The money never reaches a borrower, so there is no repayment pattern to be out of line. Needs borrower-existence checks, not collection analysis. |
 | Branch-manager collusion | The benchmark is the branch. Corrupt the branch and you corrupt the benchmark, as the Ho result above shows at a smaller scale. |
-| Disbursement theft | Happens before the first installment is due. These rules only read the repayment side. |
+| Disbursement theft | Happens before the first installment is due. These rules read only the repayment side. |
 | New-borrower schemes | Rule 2 compares a borrower to their own earlier history. A borrower with no history has nothing to contradict. |
 
-**When it fails outright.** Rules 1 and 3 compare an officer to his branch
-colleagues with his own figures removed from the benchmark. With **one officer in
-a branch the benchmark is empty**, he scores nothing on both rules, and
-`build_dashboard.py` then assigns him the worst rank, which makes him look less
-suspicious rather than more. With two officers the rules do run, but the
-benchmark rests on a single colleague and is noisy rather than absent.
-`tests/test_edge_cases.py` demonstrates both cases on a portfolio built for the
-purpose.
+**Where it fails outright: a one-officer branch.** Rules 1 and 3 compare an officer to his branch
+colleagues with his own figures removed from the benchmark. Remove the only officer in a branch
+and the benchmark is empty, so he scores nothing on both rules, and `build_dashboard.py` then
+assigns him the worst rank, which makes him look **less** suspicious rather than more. That is
+the safe direction to fail in, but an officer working a branch alone is invisible to two of the
+three rules. With two officers the rules do run, on a peer group of one, which is noisy rather
+than absent. The generated portfolio always has four officers per branch, so this never arises
+there, which is exactly why it needed a test rather than a reading of the output:
+`tests/test_edge_cases.py`.
 
-**What it assumes about the data.** A clean officer-to-borrower mapping, a
-complete repayment ledger, and branch assignments that hold still across the
-window. Real portfolios breach all three, and the next section says what that
-costs.
+**What it assumes about the data, and real data breaks all of it.** A clean officer-to-borrower
+mapping, a complete repayment ledger, and branch assignments that hold still across the window.
+The synthetic portfolio has no duplicate borrower records, no misspelled names, no branch that
+stopped reporting for a month, no system migration mid-year. Real reconciliation work is mostly
+spent on exactly those problems, and none of them are here.
 
-## Limitations, and what would come next
+**Two fraudulent officers per portfolio.** The seed sweep settles half of this, giving a
+distribution across 20 portfolios instead of a point estimate. It does not settle the other
+half: each portfolio still holds exactly two fraudsters, because that is what the real case had,
+so within any one portfolio recall moves in steps of 50%. The sweep answers whether the method
+holds up across fraud scenarios, not how precise any single estimate is.
 
-**One fraud pattern.** Only unrecorded-repayment skimming is implemented. The generator is built
-so more can be added as plugins: forged third-party claims, dormant-account claims, ghost
-borrowers. Each would exercise different rules.
-
-**Two fraudulent officers per portfolio.** The seed sweep above addresses one half of this: the
-method now has a distribution across 20 portfolios rather than a single point estimate. It does
-not address the other half. Each portfolio still contains exactly two fraudsters, because that
-is what the real case had, so within any one portfolio recall still moves in steps of 50%. The
-sweep answers "does this hold up across fraud scenarios"; it cannot answer "how precise is this
-estimate".
-
-**A one-officer branch cannot be caught by the peer-relative rules.** Rules 1 and 3 compare an
-officer to his branch colleagues with his own figures removed from the benchmark. Remove the only
-officer in a branch and the benchmark is empty, so he scores NULL. `build_dashboard.py` then
-gives him the worst rank on those rules, which makes him look **less** suspicious rather than
-more. That is the safe direction to fail in, but it is a blind spot: an officer working a branch
-alone is invisible to two of the three rules. `tests/test_edge_cases.py` demonstrates it on a
-portfolio built for the purpose. The generated portfolio has four officers per branch, so it
-never arises there, which is exactly why it needed a test rather than a reading of the output.
-
-**Synthetic data is tidier than real data.** No duplicate borrower records, no misspelled names,
-no branch that stopped reporting for a month, no system migration mid-year. Real reconciliation
-work is mostly spent on exactly those problems, and none of them are here.
+**One fraud pattern.** Only unrecorded-repayment skimming is implemented. The generator takes
+more as plugins: forged third-party claims, dormant-account claims, ghost borrowers.
 
 **No supervised model, deliberately.** With labels available it would be easy to train a
 classifier and report a flattering number. That would model the injection parameters rather than

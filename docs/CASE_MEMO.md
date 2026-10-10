@@ -73,6 +73,21 @@ Ranks 1 and 2 are flagged by all three tests; rank 3 by one.
 
 ## Why ranks 3, 4 and 5 are probably nothing
 
+Rank 1 below means the most suspicious of the 20 officers on that single test.
+
+| Queue | Officer | Collection vs peers | Own-history contradiction | Short payments |
+|---|---|---|---|---|
+| 1 | 11 | 2nd | **1st** | **1st** |
+| 2 | 9 | **1st** | 2nd | 2nd |
+| 3 | 19 | 3rd | 5th | 7th |
+| 4 | 14 | 11th | 4th | 3rd |
+| 5 | 5 | 9th | 7th | 5th |
+
+**Officers 11 and 9 are the only two that any test ranks in its top two.** Each
+officer below them is carried by a single test, and that is the pattern to look
+for when deciding how far down to work.
+
+
 - **Officer 19** sits third almost entirely on the collection-rate test. On
   short payments he is at 6.5% against peers at 6.32%, which is no difference at
   all. One signal, and the weakest one.
