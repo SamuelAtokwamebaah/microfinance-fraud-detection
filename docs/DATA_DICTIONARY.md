@@ -23,7 +23,7 @@ third. In real life nobody can see the third layer either, until somebody asks a
 
 ---
 
-## `branches` — 5 rows
+## `branches` (5 rows)
 
 | Column | Type | Description |
 |---|---|---|
@@ -32,7 +32,7 @@ third. In real life nobody can see the third layer either, until somebody asks a
 | `region` | TEXT | Greater Accra, Volta or Eastern |
 | `opened_date` | TEXT | ISO date, 3–10 years before the observation window |
 
-## `credit_officers` — 20 rows
+## `credit_officers` (20 rows)
 
 Four officers per branch, each carrying 150 borrowers.
 
@@ -44,7 +44,7 @@ Four officers per branch, each carrying 150 borrowers.
 | `hired_date` | TEXT | ISO date |
 | `owns_followup` | INTEGER | 1 when the officer also owns delinquency follow-up on his own book. **This is the control failure the project is about**: no independent party ever contacts a borrower the officer has marked delinquent. Set by `INDEPENDENT_FOLLOWUP` in config |
 
-## `borrowers` — 3,000 rows
+## `borrowers` (3,000 rows)
 
 | Column | Type | Description |
 |---|---|---|
@@ -57,7 +57,7 @@ Four officers per branch, each carrying 150 borrowers.
 | `income_band` | TEXT | `low`, `medium` or `high`. Caps the principal a borrower can take |
 | `is_market_trader` | INTEGER | 1 for weekly-cash-cycle borrowers, who repay more erratically. **Not decoration**: a detector that cannot tell a trader having a bad market week from an officer skimming will drown in false positives |
 
-## `loans` — 3,877 rows
+## `loans` (3,877 rows)
 
 | Column | Type | Description |
 |---|---|---|
@@ -73,7 +73,7 @@ Four officers per branch, each carrying 150 borrowers.
 | `status` | TEXT | `active`, `closed` or `defaulted` |
 | `restructured_from_loan_id` | INTEGER | → `loans.loan_id`, nullable. Reserved; unused at v1 |
 
-## `repayment_schedule` — 144,542 rows
+## `repayment_schedule` (144,542 rows)
 
 What the borrower was contracted to pay. One row per installment.
 
@@ -85,10 +85,10 @@ What the borrower was contracted to pay. One row per installment.
 | `due_date` | TEXT | ISO date |
 | `amount_due_ghs` | REAL | Constant across a loan's installments |
 
-## `repayments_recorded` — 136,578 rows
+## `repayments_recorded` (136,578 rows)
 
 What the books say arrived. **An installment with no row here was either never paid or fully
-skimmed, and the two are indistinguishable from this table alone** — which is the point.
+skimmed, and the two are indistinguishable from this table alone.** That is the point.
 
 There is deliberately no "outstanding balance" column. Balance is derived from schedule minus
 recorded, so withholding a payment inflates the balance automatically, exactly as it did in the
@@ -106,12 +106,12 @@ real ledger.
 
 ---
 
-# Ground truth — evaluation only
+# Ground truth, evaluation only
 
 **Detection code must never join to these tables.** They exist so that precision and recall
 can be measured, and they are the reason those figures mean anything.
 
-## `ground_truth_officers` — 20 rows
+## `ground_truth_officers` (20 rows)
 
 | Column | Type | Description |
 |---|---|---|
@@ -122,7 +122,7 @@ can be measured, and they are the reason those figures mean anything.
 | `active_to` | TEXT | End of the observation window |
 | `peak_intensity` | REAL | `SKIM_PROBABILITY` at full ramp |
 
-## `ground_truth_repayments` — 144,542 rows
+## `ground_truth_repayments` (144,542 rows)
 
 One row per scheduled installment, including the honest ones, so the table can be joined
 without dropping rows.

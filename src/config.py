@@ -6,10 +6,16 @@ world was simulated. Second, changing SEED changes the entire portfolio and the
 fraud inside it, so reproducibility is a one-line guarantee.
 """
 
+import os
+
 # ---------------------------------------------------------------- reproducibility
 # Fixed for the published version. Anyone who clones this repo and runs it gets
 # the identical portfolio, the identical fraud, and the identical results.
-SEED = 20260830
+#
+# Overridable by environment variable so that the sensitivity sweep can run the
+# whole pipeline across many seeds without editing this file. An override is a
+# deliberate act; the default is the published seed, so nothing silently drifts.
+SEED = int(os.environ.get("MFD_SEED", 20260830))
 
 # ---------------------------------------------------------------- portfolio shape
 N_BRANCHES = 5
@@ -80,4 +86,6 @@ RAMP_MONTHS = 10                     # months to reach full intensity
 INDEPENDENT_FOLLOWUP = False
 
 # ---------------------------------------------------------------- output
-DB_PATH = "data/generated/portfolio.db"
+# Also overridable, so a sweep writes its throwaway portfolios somewhere other
+# than on top of the published one.
+DB_PATH = os.environ.get("MFD_DB_PATH", "data/generated/portfolio.db")

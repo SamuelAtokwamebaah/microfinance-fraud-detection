@@ -1,7 +1,7 @@
 # microfinance-fraud-detection
 
 Catching a loan-repayment skimming scheme in a synthetic microfinance portfolio, with SQL
-rules and Python anomaly detection — and measuring honestly how much it misses.
+rules and Python anomaly detection, then measuring honestly how much it misses.
 
 **[Open the case dashboard](https://samuelatokwamebaah.github.io/microfinance-fraud-detection/)**,
 the evidence laid out the way an investigator would work it, with nothing to install.
@@ -18,7 +18,7 @@ In a Ghanaian microfinance receivership I found **GHS 58,600** that a credit off
 from **27 borrowers**.
 
 The scheme was simple. He collected repayments and did not record them. The borrowers believed
-they were up to date, because they were — they had the receipts. The books showed them falling
+they were up to date, because they were. They had the receipts. The books showed them falling
 behind, so their balances grew, and he could press them for more. Nobody caught the gap because
 the officer who recorded the payments was also the officer who chased the arrears.
 
@@ -33,7 +33,7 @@ and how much would we miss?**
 ## What it does
 
 It builds a 24-month microfinance loan book of 3,000 borrowers, injects a skimming scheme of the
-same shape, and then tries to find it — using only what an auditor would actually have.
+same shape, and then tries to find it, using only what an auditor would actually have.
 
 | | |
 |---:|:---|
@@ -68,11 +68,57 @@ The dashboard ranks officers by their mean position across three independent rul
 
 **Officers 11 and 9 are the two fraudsters, and they sit first and second.** Investigate the top
 two and you catch both with no wasted effort: precision 100%, recall 100%. Investigate the top
-three and you also pull in officer 19, who has done nothing wrong — the cost of one more step
+three and you also pull in officer 19, who has done nothing wrong. The cost of one more step
 down the queue is one innocent colleague under suspicion.
 
 Ranking beat every individual rule, and beat thresholds. A cutoff tuned until it works is a
 cutoff fitted to labels you would not have in production; a rank needs no tuning.
+
+### Walking down the queue, and how far down you have to go
+
+| Investigate the top | Precision | Recall | |
+|---|---|---|---|
+| 1 | 100% | 50% | one fraudster named, one still working |
+| 2 | 100% | 100% | both, with nobody wrongly accused |
+| 3 | 67% | 100% | one innocent colleague pulled in |
+| 5 | 40% | 100% | three innocent colleagues pulled in |
+
+The useful figure here is **precision at the top of the queue, not at the bottom.** An
+investigator with time for one officer loses nothing by starting at the top; an investigator
+who works five deep spends 60% of the effort on innocent staff.
+
+### Does it survive a different portfolio?
+
+The figures above come from one portfolio with exactly two fraudsters. With n = 2, "100% recall"
+only means "we found both", and that is a much weaker statement than it looks. So the whole
+pipeline was rerun across **20 independently generated portfolios**, each with different officers
+stealing from different borrowers, scoring the identical ranking with no parameter changed.
+
+```bash
+python analysis/sensitivity.py
+```
+
+| Across 20 seeds | mean | sd | min | max |
+|---|---|---|---|---|
+| precision, top 1 | **100%** | 0 | 100% | 100% |
+| recall, top 2 | 95% | 15 | 50% | 100% |
+| precision, top 2 | 95% | 15 | 50% | 100% |
+| recall, top 3 | **100%** | 0 | 100% | 100% |
+| 2-of-3 rule, recall | **100%** | 0 | 100% | 100% |
+| 2-of-3 rule, precision | 90% | 15 | 67% | 100% |
+
+**The top of the queue was a fraudster in all 20 portfolios, and both fraudsters were inside the
+top three in all 20.** The worst any fraudster ever ranked was third.
+
+Where it degrades is the top *two*: in 18 of 20 portfolios both fraudsters sat first and second,
+and in the other two one of them slipped to third. So the honest version of the headline is not
+"precision 100%, recall 100%" but this:
+
+> Start at the top of the queue and the first officer is guilty. Work three deep and you will
+> have both, every time, at the cost of one innocent colleague under suspicion.
+
+That is a weaker claim than the single-seed numbers support, and it is the one the evidence
+actually carries.
 
 ### What each rule found on its own
 
@@ -81,7 +127,7 @@ cutoff fitted to labels you would not have in production; a rank needs no tuning
 | Collection rate vs branch peers | 100% | 50% | catches the bold one, misses the careful one |
 | Borrowers contradicting own history | 67% | 100% | compares each borrower to themselves, so a book full of market traders is not penalised |
 | Short payments vs branch peers | 67% | 100% | targets the mechanism rather than the symptom |
-| Benford first-digit test | 0% | 0% | **does not apply here — see below** |
+| Benford first-digit test | 0% | 0% | **does not apply here, see below** |
 
 Rule 1 alone misses the careful officer entirely. Requiring **two of the three rules to agree**
 flags exactly two officers, and both are guilty: precision 100%, recall 100%. That agreement,
@@ -91,13 +137,13 @@ not any single rule, is what the case queue is built on.
 
 | | Precision | Recall |
 |---|---|---|
-| **Officer level** — did we name the right people? | 100% | 100% |
-| **Transaction level** — did we identify the right money? | 33% | 29% |
+| **Officer level**: did we name the right people? | 100% | 100% |
+| **Transaction level**: did we identify the right money? | 33% | 29% |
 
 We accused 1,121 installments; 370 had actually been skimmed. **We can name the culprit with
 confidence and still identify only a quarter of the theft**, because an honest short payment and
 a skimmed one look identical one row at a time. Measured on this portfolio, **6.4% of recorded
-installments are honest shortfalls** — about one in sixteen — and the detector has to beat that
+installments are honest shortfalls**, about one in sixteen, and the detector has to beat that
 noise floor, not a clean ledger.
 
 This is why the real case needed full documentary evidence before it could be escalated, and
@@ -107,7 +153,7 @@ hiding this distinction.
 ### Two negative results, reported rather than buried
 
 **Benford's law does not work here.** The first-digit test is the standard tool an auditor
-reaches for, and it scored zero — the three officers it flagged are all honest. Benford needs
+reaches for, and it scored zero. The three officers it flagged are all honest. Benford needs
 values spanning orders of magnitude from a multiplicative process. Repayment installments are a
 formula repeated identically for 104 weeks, so the same leading digit recurs dozens of times per
 loan. The digit distribution describes the loan book, not the officer.
@@ -130,21 +176,30 @@ repayments_recorded     what the BOOKS say arrived                   detection �
 ground_truth_*          what ACTUALLY happened at the doorstep       evaluation only
 ```
 
-Detection never reads the third layer. Neither does the dashboard. Only the evaluation code
-does, after the ranking is fixed — which is the only reason the precision figures above mean
-anything. In real life nobody can see that layer either, until somebody asks a borrower.
+Detection never reads the third layer. The ranking, the SQL rules and the evidence pack are
+computed without it, and only the evaluation code reads it, after the ranking is already fixed.
+That is the only reason the precision figures above mean anything. The dashboard shows
+ground-truth figures in one clearly marked scoreboard panel, loaded separately from the case
+queue and incapable of influencing it. In real life nobody can see that layer either, until
+somebody asks a borrower.
+
+This is the project's one silent failure mode: if the wall were ever breached, nothing would
+crash and no number would look wrong, they would just all be circular. So it is checked by
+machine rather than asserted here. `tests/test_layer_separation.py` parses every module and
+every SQL file and fails if any function outside an explicit evaluation allowlist so much as
+mentions a ground-truth table.
 
 Full column-by-column detail: **[docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md)**.
 
 ### Two detection tiers
 
-**Tier 1 — SQL rules**, the queries an auditor would run. Written in raw SQL, using CTEs and
-window functions. The key idea throughout is **peer-relative comparison**: every officer is
-measured against colleagues in the same branch in the same month, with his own contribution
-removed from the benchmark so he cannot hide inside an average he dominates. That cancels branch
-quality and seasonality, which would otherwise generate false positives.
+**Tier 1, the SQL rules.** These are the queries an auditor would run, written in raw SQL
+using CTEs and window functions. The key idea throughout is **peer-relative comparison**:
+every officer is measured against colleagues in the same branch in the same month, with his
+own contribution removed from the benchmark so he cannot hide inside an average he dominates.
+That cancels branch quality and seasonality, which would otherwise generate false positives.
 
-**Tier 2 — Python statistics.** Peer-relative officer-month features, scored by a combined
+**Tier 2, Python statistics.** Peer-relative officer-month features, scored by a combined
 z-score and by Isolation Forest, reported at both officer and transaction level.
 
 ### The dashboard
@@ -152,9 +207,9 @@ z-score and by Isolation Forest, reported at both officer and transaction level.
 [**Live at samuelatokwamebaah.github.io/microfinance-fraud-detection**](https://samuelatokwamebaah.github.io/microfinance-fraud-detection/),
 built from `docs/index.html`. Static, dependency-free, mirroring a real escalation:
 
-1. **Case queue** — who to look at first, and which rules fired
-2. **Officer detail** — rule scores and a collection trend against branch peers
-3. **Evidence pack** — the borrowers and the individual installments, with amount due,
+1. **Case queue**: who to look at first, and which rules fired
+2. **Officer detail**: rule scores and a collection trend against branch peers
+3. **Evidence pack**: the borrowers and the individual installments, with amount due,
    amount recorded and shortfall, restricted to borrowers whose first eight installments were
    clean and who then went short. That restriction is what makes it an evidence pack rather
    than a list of every late payer.
@@ -186,6 +241,37 @@ sqlite3 data/generated/portfolio.db < sql/03_short_payment_concentration.sql
 
 Change `SEED` in `src/config.py` and you get a different portfolio with different fraud in
 different officers. The published seed is fixed so that every number in this README is checkable.
+For a one-off run without editing the file:
+
+```bash
+MFD_SEED=12345 MFD_DB_PATH=data/generated/scratch.db python src/generate.py
+```
+
+### Tests
+
+```bash
+python tests/run_tests.py          # all three
+python tests/run_tests.py --fast   # skip the ones that rebuild portfolios
+```
+
+No test framework, and nothing to install, for the same reason the SQL tier needs only the
+standard library.
+
+| test | what it would catch |
+|---|---|
+| `test_layer_separation.py` | detection code reading the ground-truth tables, which would make every precision figure circular while breaking nothing |
+| `test_edge_cases.py` | the SQL mishandling an empty peer group, a month with nothing due, or an installment with no repayment row |
+| `test_reproducibility.py` | an unseeded call to `random` creeping into the generator, which would make the README's numbers drift silently |
+
+### Sensitivity
+
+```bash
+python analysis/sensitivity.py              # 20 seeds, about 3 minutes
+python analysis/sensitivity.py --seeds 5    # quicker
+```
+
+Rebuilds the portfolio from scratch under each seed and scores the same published ranking. The
+seed list is fixed and published, so the sweep is as reproducible as the single run it tests.
 
 ---
 
@@ -207,6 +293,13 @@ sql/
   02_delinquency_contradiction.sql    borrowers contradicting their own history
   03_short_payment_concentration.sql  short payments vs branch peers
   04_benford_first_digit.sql          Benford test, and why it fails here
+tests/
+  run_tests.py             all three, one command, no framework
+  test_layer_separation.py detection is blind to ground truth, checked by parsing the source
+  test_edge_cases.py       the SQL against an empty peer group and a zero-due month
+  test_reproducibility.py  same seed reproduces, different seed differs
+analysis/
+  sensitivity.py           the same ranking across 20 generated portfolios
 docs/
   index.html               the evidence dashboard
   DATA_DICTIONARY.md       every table and column
@@ -217,12 +310,24 @@ docs/
 ## Limitations, and what would come next
 
 **One fraud pattern.** Only unrecorded-repayment skimming is implemented. The generator is built
-so more can be added as plugins — forged third-party claims, dormant-account claims, ghost
-borrowers — and each would exercise different rules.
+so more can be added as plugins: forged third-party claims, dormant-account claims, ghost
+borrowers. Each would exercise different rules.
 
-**Two fraudulent officers, one seed.** With n = 2 the precision figures are indicative, not
-statistical. A fuller evaluation would sweep many seeds and report a distribution rather than a
-point estimate.
+**Two fraudulent officers per portfolio.** The seed sweep above addresses one half of this: the
+method now has a distribution across 20 portfolios rather than a single point estimate. It does
+not address the other half. Each portfolio still contains exactly two fraudsters, because that
+is what the real case had, so within any one portfolio recall still moves in steps of 50%. The
+sweep answers "does this hold up across fraud scenarios"; it cannot answer "how precise is this
+estimate".
+
+**A one-officer branch cannot be caught by the peer-relative rules.** Rules 1 and 3 compare an
+officer to his branch colleagues with his own figures removed from the benchmark. Remove the only
+officer in a branch and the benchmark is empty, so he scores NULL. `build_dashboard.py` then
+gives him the worst rank on those rules, which makes him look **less** suspicious rather than
+more. That is the safe direction to fail in, but it is a blind spot: an officer working a branch
+alone is invisible to two of the three rules. `tests/test_edge_cases.py` demonstrates it on a
+portfolio built for the purpose. The generated portfolio has four officers per branch, so it
+never arises there, which is exactly why it needed a test rather than a reading of the output.
 
 **Synthetic data is tidier than real data.** No duplicate borrower records, no misspelled names,
 no branch that stopped reporting for a month, no system migration mid-year. Real reconciliation
@@ -231,7 +336,7 @@ work is mostly spent on exactly those problems, and none of them are here.
 **No supervised model, deliberately.** With labels available it would be easy to train a
 classifier and report a flattering number. That would model the injection parameters rather than
 fraud, and it would not transfer. The unsupervised framing is the honest one when real labels do
-not exist — which, in a live portfolio, they do not.
+not exist, and in a live portfolio they do not.
 
 **Detection is not proof.** Everything here produces a ranked suspicion and a documented
 shortfall. In the real case that was the beginning of an investigation, not the end of one.
