@@ -6,6 +6,7 @@ world was simulated. Second, changing SEED changes the entire portfolio and the
 fraud inside it, so reproducibility is a one-line guarantee.
 """
 
+import datetime as _dt
 import os
 
 # ---------------------------------------------------------------- reproducibility
@@ -24,6 +25,15 @@ BORROWERS_PER_OFFICER = 150          # 5 x 4 x 150 = 3,000 borrowers
 
 SIM_START = "2024-01-01"             # 24-month observation window
 SIM_MONTHS = 24
+
+# The window every detection query filters on. DERIVED from the two settings
+# above rather than written out, because the end date is the thing that silently
+# rots: raise SIM_MONTHS to 36 and a hand-typed '2025-12-31' would quietly throw
+# away the last twelve months of the portfolio, with nothing to show it had.
+WINDOW_START = SIM_START
+_months = (int(SIM_START[:4]) * 12 + int(SIM_START[5:7]) - 1) + SIM_MONTHS
+WINDOW_END = (_dt.date(_months // 12, _months % 12 + 1, 1)
+              - _dt.timedelta(days=1)).isoformat()
 
 # ---------------------------------------------------------------- loan products
 PRINCIPAL_MIN_GHS = 500
@@ -89,3 +99,21 @@ INDEPENDENT_FOLLOWUP = False
 # Also overridable, so a sweep writes its throwaway portfolios somewhere other
 # than on top of the published one.
 DB_PATH = os.environ.get("MFD_DB_PATH", "data/generated/portfolio.db")
+
+
+def apply_window(sql: str) -> str:
+    """Substitute the observation window into a query held in Python.
+
+    Literal token replacement rather than str.format, because some of these
+    queries already carry `%s` and `?` placeholders of their own and must not
+    be reformatted.
+
+    The .sql files in sql/ keep their dates written out instead. That is
+    deliberate: the README tells a reader to run them straight against the
+    database with `sqlite3 portfolio.db < sql/03_...sql`, and a query carrying
+    an unbound parameter cannot be run that way. tests/test_window.py asserts
+    those literals still agree with the window above, so the duplication is
+    checked rather than merely tolerated.
+    """
+    return (sql.replace("{WINDOW_START}", WINDOW_START)
+               .replace("{WINDOW_END}", WINDOW_END))

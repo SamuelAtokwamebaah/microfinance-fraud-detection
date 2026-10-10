@@ -56,7 +56,7 @@ inst AS (
     JOIN loans           l ON l.loan_id    = s.loan_id
     JOIN credit_officers o ON o.officer_id = l.officer_id
     LEFT JOIN paid       p ON p.schedule_id = s.schedule_id
-    WHERE s.due_date BETWEEN '2024-01-01' AND '2025-12-31'
+    WHERE s.due_date BETWEEN '{WINDOW_START}' AND '{WINDOW_END}'
       AND s.amount_due_ghs > 0
 )
 SELECT officer_id, branch_id, period,
@@ -84,7 +84,7 @@ def build_features(con):
     Feeding raw rates to an anomaly detector would mostly discover that January
     is different from June.
     """
-    df = pd.read_sql_query(FEATURE_SQL, con)
+    df = pd.read_sql_query(C.apply_window(FEATURE_SQL), con)
 
     df["collection_rate"] = df["recorded_ghs"] / df["due_ghs"]
     df["short_rate"] = df["n_short"] / df["n_recorded"].replace(0, np.nan)
@@ -180,7 +180,7 @@ def transaction_level(con, flagged_officers):
         FROM repayment_schedule s
         JOIN loans l ON l.loan_id = s.loan_id
         LEFT JOIN paid p ON p.schedule_id = s.schedule_id
-        WHERE s.due_date BETWEEN '2024-01-01' AND '2025-12-31'
+        WHERE s.due_date BETWEEN '{WINDOW_START}' AND '{WINDOW_END}'
           AND s.amount_due_ghs > 0
     ),
     clean_start AS (
@@ -195,7 +195,8 @@ def transaction_level(con, flagged_officers):
     WHERE i.officer_id IN (%s)
       AND i.recorded_ghs < 0.95 * i.amount_due_ghs
     """ % placeholders
-    accused = {r[0] for r in con.execute(sql, list(flagged_officers))}
+    accused = {r[0] for r in con.execute(C.apply_window(sql),
+                                        list(flagged_officers))}
     actual = {r[0] for r in con.execute(
         "SELECT schedule_id FROM ground_truth_repayments WHERE was_skimmed = 1")}
     tp = len(accused & actual)

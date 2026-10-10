@@ -7,11 +7,12 @@ There is no pytest here, and no test framework at all, for the same reason the
 SQL tier needs only the standard library: a reviewer should be able to clone
 this repository and run everything without installing anything first.
 
-Three tests, in increasing cost:
+Four tests, in increasing cost:
 
     layer_separation   reads the source. Instant. The most important one, because
                        the failure it guards against is silent.
     edge_cases         builds a tiny awkward portfolio in memory. About a second.
+    window             reads config and the SQL. Instant. Guards a silent drift.
     reproducibility    rebuilds three full portfolios. About 25 seconds.
 """
 
@@ -28,6 +29,8 @@ TESTS = [
      "detection code is blind to ground truth", False),
     ("edge_cases", "test_edge_cases.py",
      "the SQL survives an empty peer group", False),
+    ("window", "test_window.py",
+     "the observation window agrees everywhere", False),
     ("reproducibility", "test_reproducibility.py",
      "same seed reproduces, different seed differs", True),
 ]

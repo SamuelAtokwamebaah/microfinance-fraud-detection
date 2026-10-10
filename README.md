@@ -87,6 +87,50 @@ The useful figure here is **precision at the top of the queue, not at the bottom
 investigator with time for one officer loses nothing by starting at the top; an investigator
 who works five deep spends 60% of the effort on innocent staff.
 
+### Which rule put each officer there
+
+The score is the mean of three ranks, so the interesting question is not the
+score but which test drove it. Rank 1 is the most suspicious of the 20 officers
+on that test.
+
+| Rank | Officer | Collection vs peers | Own-history contradiction | Short payments | Dominant signal |
+|---|---|---|---|---|---|
+| 1 | 11 | 2nd | **1st** | **1st** | short payments and contradiction |
+| 2 | 9 | **1st** | 2nd | 2nd | collection rate |
+| 3 | 19 | 3rd | 5th | 7th | collection rate only |
+| 4 | 14 | 11th | 4th | 3rd | short payments only |
+| 5 | 5 | 9th | 7th | 5th | none, mid-table throughout |
+
+**The two guilty officers are the only two that any test ranks in its top two.**
+Everyone below them is carried by a single signal:
+
+- **Officer 19** is third almost entirely on collection rate. On short payments
+  he is at 6.5% against peers at 6.32%, which is no difference at all.
+- **Officer 14** collects **better** than his peers, by 0.65 points, and was
+  below them in only 1 month of 24. He appears because his short-payment rate is
+  1 point above his branch, which a book full of market traders will produce.
+- **Officer 5** fires no signal at all. He is fifth because he is mildly
+  mid-table on everything, which is what fifth place looks like when 18 of 20
+  officers are honest.
+
+### The two fraudsters hide inside each other
+
+Officers 11 and 9 are both in the Ho branch, and the peer benchmark removes only
+the officer being scored, not the other one. So each fraudster's skimming is
+sitting in the benchmark the other is judged against.
+
+| Officer 11's short-payment rate against | Benchmark | He is |
+|---|---|---|
+| the branch, as the rule computes it | 8.44% | 1.59x his peers |
+| the branch excluding officer 9 | 6.51% | **2.07x his peers** |
+
+**Peer-relative detection understates collusion, and understates coincidence
+too.** It does not need two officers to be working together, only to be in the
+same branch at the same time. The more of a branch that is skimming, the more
+normal skimming looks there, and a whole branch doing it would read as clean.
+That is a structural limit of the method rather than a tuning problem, and it is
+the main reason the rules are a queue for human review and not a verdict.
+
 ### Does it survive a different portfolio?
 
 The figures above come from one portfolio with exactly two fraudsters. With n = 2, "100% recall"
@@ -207,6 +251,10 @@ z-score and by Isolation Forest, reported at both officer and transaction level.
 [**Live at samuelatokwamebaah.github.io/microfinance-fraud-detection**](https://samuelatokwamebaah.github.io/microfinance-fraud-detection/),
 built from `docs/index.html`. Static, dependency-free, mirroring a real escalation:
 
+A worked example of reading the queue, written for a non-technical investigator
+and using only figures from the run, is in
+**[docs/CASE_MEMO.md](docs/CASE_MEMO.md)**.
+
 1. **Case queue**: who to look at first, and which rules fired
 2. **Officer detail**: rule scores and a collection trend against branch peers
 3. **Evidence pack**: the borrowers and the individual installments, with amount due,
@@ -302,10 +350,42 @@ analysis/
   sensitivity.py           the same ranking across 20 generated portfolios
 docs/
   index.html               the evidence dashboard
+  CASE_MEMO.md             the top-ranked officer explained in plain English
   DATA_DICTIONARY.md       every table and column
 ```
 
 ---
+
+## Scope and limits
+
+**What this method catches.** Repayment skimming by a credit officer: money
+collected from the borrower and not entered, or entered short. It catches it at
+officer level, from aggregate patterns, without needing to know which
+installments were taken.
+
+**What it misses, by design.** Each of these would need a different rule, and
+none of them would show up in the three used here.
+
+| Scheme | Why these rules cannot see it |
+|---|---|
+| Ghost loans | The money never reaches a borrower, so there is no repayment pattern to be out of line. Needs borrower-existence checks, not collection analysis. |
+| Branch-manager collusion | The benchmark is the branch. Corrupt the branch and you corrupt the benchmark, as the Ho result above shows at a smaller scale. |
+| Disbursement theft | Happens before the first installment is due. These rules only read the repayment side. |
+| New-borrower schemes | Rule 2 compares a borrower to their own earlier history. A borrower with no history has nothing to contradict. |
+
+**When it fails outright.** Rules 1 and 3 compare an officer to his branch
+colleagues with his own figures removed from the benchmark. With **one officer in
+a branch the benchmark is empty**, he scores nothing on both rules, and
+`build_dashboard.py` then assigns him the worst rank, which makes him look less
+suspicious rather than more. With two officers the rules do run, but the
+benchmark rests on a single colleague and is noisy rather than absent.
+`tests/test_edge_cases.py` demonstrates both cases on a portfolio built for the
+purpose.
+
+**What it assumes about the data.** A clean officer-to-borrower mapping, a
+complete repayment ledger, and branch assignments that hold still across the
+window. Real portfolios breach all three, and the next section says what that
+costs.
 
 ## Limitations, and what would come next
 

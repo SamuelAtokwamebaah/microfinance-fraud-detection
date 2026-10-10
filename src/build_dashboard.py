@@ -144,7 +144,7 @@ om AS (
     JOIN loans l ON l.loan_id = s.loan_id
     JOIN credit_officers o ON o.officer_id = l.officer_id
     LEFT JOIN paid p ON p.schedule_id = s.schedule_id
-    WHERE s.due_date BETWEEN '2024-01-01' AND '2025-12-31'
+    WHERE s.due_date BETWEEN '{WINDOW_START}' AND '{WINDOW_END}'
     GROUP BY l.officer_id, o.branch_id, period
 )
 SELECT officer_id, period,
@@ -157,7 +157,7 @@ FROM om ORDER BY officer_id, period
 
 def build_trends(con):
     trends = {}
-    for r in con.execute(TREND_SQL):
+    for r in con.execute(C.apply_window(TREND_SQL)):
         trends.setdefault(str(r["officer_id"]), []).append(
             {"period": r["period"], "officer": r["officer_rate"], "peer": r["peer_rate"]})
     return trends
@@ -178,7 +178,7 @@ inst AS (
     FROM repayment_schedule s
     JOIN loans l ON l.loan_id = s.loan_id
     LEFT JOIN paid p ON p.schedule_id = s.schedule_id
-    WHERE l.officer_id = ? AND s.due_date <= '2025-12-31' AND s.amount_due_ghs > 0
+    WHERE l.officer_id = ? AND s.due_date <= '{WINDOW_END}' AND s.amount_due_ghs > 0
 ),
 clean_start AS (
     SELECT borrower_id FROM inst WHERE seq <= 8 GROUP BY borrower_id
@@ -205,7 +205,8 @@ def build_evidence(con, officer_id):
     That is the victim profile a skimming scheme selects, and restricting to it
     is what separates an evidence pack from a list of every late payer.
     """
-    rows = [dict(r) for r in con.execute(EVIDENCE_SQL, (officer_id,))]
+    rows = [dict(r) for r in con.execute(C.apply_window(EVIDENCE_SQL),
+                                          (officer_id,))]
     total = round(sum(r["shortfall_ghs"] for r in rows), 2)
     borrowers = {}
     for r in rows:
